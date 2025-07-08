@@ -60,4 +60,4 @@ jobs:
         run: |
           git add docker-compose.yml
           git diff --cached --quiet || git commit -m "Sync with upstream and add metrics-file command"
-          git push origin main
+          git push origin master
