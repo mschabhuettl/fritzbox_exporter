@@ -1,0 +1,63 @@
+name: Sync with upstream and patch compose
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  sync_and_patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+
+      - name: Set up Git
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "actions@github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/sberk42/fritzbox_exporter.git
+          git fetch upstream
+
+      - name: Merge upstream changes
+        run: |
+          git merge upstream/master --no-edit || echo "No upstream changes"
+
+      - name: Patch docker-compose.yml with metrics-file
+        run: |
+          COMPOSE_FILE="docker-compose.yml"
+          METRICS_FILENAME="all_available_metrics_7590_8.02.json"
+
+          if grep -q "command:" "$COMPOSE_FILE"; then
+            echo "command already exists, skipping patch."
+          else
+            echo "Patching docker-compose.yml to add custom command..."
+
+            awk '
+              BEGIN { added = 0 }
+              /^ *container_name:/ {
+                print
+                print "    command: >"
+                print "      ./fritzbox_exporter -metrics-file " ENVIRON["METRICS_FILENAME"]
+                added = 1
+                next
+              }
+              { print }
+              END {
+                if (!added) {
+                  print "    command: ./fritzbox_exporter -metrics-file " ENVIRON["METRICS_FILENAME"]
+                }
+              }
+            ' "$COMPOSE_FILE" > "$COMPOSE_FILE.tmp"
+
+            mv "$COMPOSE_FILE.tmp" "$COMPOSE_FILE"
+          fi
+
+      - name: Commit and push if changed
+        run: |
+          git add docker-compose.yml
+          git diff --cached --quiet || git commit -m "Sync with upstream and add metrics-file command"
+          git push origin main
