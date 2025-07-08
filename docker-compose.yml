@@ -6,6 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: fritzbox-prometheus-exporter
+    command: >
+      ./fritzbox_exporter -metrics-file 
     # for dns issues like "dial tcp: lookup fritz.box on 127.0.0.11:53: no such host"
     # uncomment and fill the following line:
     # dns: YOUR_FRITZBOX_IP
