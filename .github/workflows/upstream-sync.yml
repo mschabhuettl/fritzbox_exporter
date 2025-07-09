@@ -2,15 +2,21 @@ name: Sync with upstream and patch compose
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 * * * *'  # Every hour
   workflow_dispatch:
 
 jobs:
   sync_and_patch:
     runs-on: ubuntu-latest
+    env:
+      METRICS_FILENAME: all_available_metrics_7590_8.02.json
+
     steps:
       - name: Checkout fork
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Set up Git
         run: |
@@ -29,35 +35,32 @@ jobs:
       - name: Patch docker-compose.yml with metrics-file
         run: |
           COMPOSE_FILE="docker-compose.yml"
-          METRICS_FILENAME="all_available_metrics_7590_8.02.json"
 
           if grep -q "command:" "$COMPOSE_FILE"; then
-            echo "command already exists, skipping patch."
+            echo "command already exists, replacing..."
+            sed -i 's|command:.*|command: >\n      ./fritzbox_exporter -metrics-file '"$METRICS_FILENAME"'|' "$COMPOSE_FILE"
           else
             echo "Patching docker-compose.yml to add custom command..."
-
-            awk '
+            awk -v METRICS="$METRICS_FILENAME" '
               BEGIN { added = 0 }
               /^ *container_name:/ {
                 print
                 print "    command: >"
-                print "      ./fritzbox_exporter -metrics-file " ENVIRON["METRICS_FILENAME"]
+                print "      ./fritzbox_exporter -metrics-file " METRICS
                 added = 1
                 next
               }
               { print }
               END {
                 if (!added) {
-                  print "    command: ./fritzbox_exporter -metrics-file " ENVIRON["METRICS_FILENAME"]
+                  print "    command: ./fritzbox_exporter -metrics-file " METRICS
                 }
               }
-            ' "$COMPOSE_FILE" > "$COMPOSE_FILE.tmp"
-
-            mv "$COMPOSE_FILE.tmp" "$COMPOSE_FILE"
+            ' "$COMPOSE_FILE" > "$COMPOSE_FILE.tmp" && mv "$COMPOSE_FILE.tmp" "$COMPOSE_FILE"
           fi
 
       - name: Commit and push if changed
         run: |
           git add docker-compose.yml
           git diff --cached --quiet || git commit -m "Sync with upstream and add metrics-file command"
-          git push origin master
+          git push origin HEAD
