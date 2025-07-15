@@ -140,6 +140,7 @@ services:
       ./fritzbox_exporter -metrics-file all_available_metrics_7590_8.02.json
       ./fritzbox_exporter -metrics-file all_available_metrics_7590_8.02.json
       ./fritzbox_exporter -metrics-file all_available_metrics_7590_8.02.json
+      ./fritzbox_exporter -metrics-file all_available_metrics_7590_8.02.json
       ./fritzbox_exporter -metrics-file 
     # for dns issues like "dial tcp: lookup fritz.box on 127.0.0.11:53: no such host"
     # uncomment and fill the following line:
